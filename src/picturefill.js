@@ -1,4 +1,4 @@
-/*! Picturefill - Responsive Images that work today.
+/*! bgpicture - Responsive Images that work today.
 *  Author: Scott Jehl, Filament Group, 2012 ( new proposal implemented by Shawn Jansepar )
 *  License: MIT/GPLv2
 *  Spec: http://picture.responsiveimages.org/
@@ -7,44 +7,32 @@
 	// Enable strict mode
 	"use strict";
 
-	function expose(picturefill) {
-		/* expose picturefill */
+	function expose(bgpicture) {
+		/* expose bgpicture */
 		if ( typeof module === "object" && typeof module.exports === "object" ) {
 			// CommonJS, just export
-			module.exports = picturefill;
+			module.exports = bgpicture;
 		} else if ( typeof define === "function" && define.amd ) {
 			// AMD support
-			define( "picturefill", function() { return picturefill; } );
+			define( "bgpicture", function() { return bgpicture; } );
 		}
 		if ( typeof w === "object" ) {
 			// If no AMD and we are in the browser, attach to window
-			w.picturefill = picturefill;
+			w.bgpicture = bgpicture;
 		}
 	}
 
-	// If picture is supported, well, that's awesome. Let's get outta here...
-	if ( w.HTMLPictureElement ) {
-		expose(function() { });
-		return;
-	}
 
 	// HTML shim|v it for old IE (IE9 will still need the HTML video tag workaround)
 	doc.createElement( "picture" );
 
 	// local object for method references and testing exposure
-	var pf = w.picturefill || {};
+	var pf = w.bgpicture || {};
 
 	var regWDesc = /\s+\+?\d+(e\d+)?w/;
 
 	// namespace
-	pf.ns = "picturefill";
-
-	// srcset support test
-	(function() {
-		pf.srcsetSupported = "srcset" in image;
-		pf.sizesSupported = "sizes" in image;
-		pf.curSrcSupported = "currentSrc" in image;
-	})();
+	pf.ns = "bgpicture";
 
 	// just a string trim workaround
 	pf.trim = function( str ) {
@@ -110,7 +98,7 @@
 			pf.lengthEl.style.cssText = "border:0;display:block;font-size:1em;left:0;margin:0;padding:0;position:absolute;visibility:hidden";
 
 			// Add a class, so that everyone knows where this element comes from
-			pf.lengthEl.className = "helper-from-picturefill-js";
+			pf.lengthEl.className = "helper-from-bgpicture-js";
 		}
 
 		pf.lengthEl.style.width = "0px";
@@ -138,11 +126,11 @@
         var image = new w.Image();
         image.onerror = function() {
             pf.types[ type ] = false;
-            picturefill();
+            bgpicture();
         };
         image.onload = function() {
             pf.types[ type ] = image.width === 1;
-            picturefill();
+            bgpicture();
         };
         image.src = typeUri;
 
@@ -167,7 +155,7 @@
 			return true;
 		} else {
 				var pfType = pf.types[ type ];
-			// if the type test is a function, run it and return "pending" status. The function will rerun picturefill on pending elements once finished.
+			// if the type test is a function, run it and return "pending" status. The function will rerun bgpicture on pending elements once finished.
 			if ( typeof pfType === "string" && pfType !== "pending") {
 				pf.types[ type ] = pf.detectTypeSupport( type, pfType );
 				return "pending";
@@ -182,7 +170,9 @@
 
 	// Parses an individual `size` and returns the length, and optional media query
 	pf.parseSize = function( sourceSizeStr ) {
-		var match = /(\([^)]+\))?\s*(.+)/g.exec( sourceSizeStr );
+		/*var match = /(\([^)]+\)(?:[^0-9]+[^)]+\))*)?\s*(.+)/g.exec( sourceSizeStr );*/
+		var match = /(?:(.*)\s+)?([0-9]+.+)/g.exec( sourceSizeStr );
+
 		return {
 			media: match && match[1],
 			length: match && match[2]
@@ -197,6 +187,7 @@
 			winningLength;
 
 		for ( var i = 0, len = sourceSizeList.length; i < len; i++ ) {
+
 			// Match <media-condition>? length, ie ( min-width: 50em ) 100%
 			var sourceSize = sourceSizeList[ i ],
 				// Split "( min-width: 50em ) 100%" into separate strings
@@ -207,6 +198,7 @@
 			if ( !length ) {
 				continue;
 			}
+
 			// if there is no media query or it matches, choose this as our winning length
 			if ( (!media || pf.matchesMedia( media )) &&
 				// pass the length to a method that can properly determine length
@@ -355,80 +347,23 @@
 			candidates = [];
 
 		// if it's an img element, use the cached srcset property (defined or not)
-		if ( el.nodeName.toUpperCase() === "IMG" && el[ pf.ns ] && el[ pf.ns ].srcset ) {
+		if ( el.nodeName.toUpperCase() === "BGDEFAULT" && el[ pf.ns ] && el[ pf.ns ].srcset ) {
 			srcset = el[ pf.ns ].srcset;
 		}
 
 		if ( srcset ) {
 			candidates = pf.getCandidatesFromSourceSet( srcset, sizes );
 		}
+
 		return candidates;
 	};
-
-	pf.backfaceVisibilityFix = function( picImg ) {
-		// See: https://github.com/scottjehl/picturefill/issues/332
-		var style = picImg.style || {},
-			WebkitBackfaceVisibility = "webkitBackfaceVisibility" in style,
-			currentZoom = style.zoom;
-
-		if (WebkitBackfaceVisibility) {
-			style.zoom = ".999";
-
-			WebkitBackfaceVisibility = picImg.offsetWidth;
-
-			style.zoom = currentZoom;
-		}
-	};
-
-	pf.setIntrinsicSize = (function() {
-		var urlCache = {};
-		var setSize = function( picImg, width, res ) {
-            if ( width ) {
-			    picImg.setAttribute( "width", parseInt(width / res, 10) );
-            }
-		};
-		return function( picImg, bestCandidate ) {
-			var img;
-			if ( !picImg[ pf.ns ] || w.pfStopIntrinsicSize ) {
-				return;
-			}
-			if ( picImg[ pf.ns ].dims === undefined ) {
-				picImg[ pf.ns].dims = picImg.getAttribute("width") || picImg.getAttribute("height");
-			}
-			if ( picImg[ pf.ns].dims ) { return; }
-
-			if ( bestCandidate.url in urlCache ) {
-				setSize( picImg, urlCache[bestCandidate.url], bestCandidate.resolution );
-			} else {
-				img = doc.createElement( "img" );
-				img.onload = function() {
-					urlCache[bestCandidate.url] = img.width;
-
-                    //IE 10/11 don't calculate width for svg outside document
-                    if ( !urlCache[bestCandidate.url] ) {
-                        try {
-                            doc.body.appendChild( img );
-                            urlCache[bestCandidate.url] = img.width || img.offsetWidth;
-                            doc.body.removeChild( img );
-                        } catch(e){}
-                    }
-
-					if ( picImg.src === bestCandidate.url ) {
-						setSize( picImg, urlCache[bestCandidate.url], bestCandidate.resolution );
-					}
-					picImg = null;
-					img.onload = null;
-					img = null;
-				};
-				img.src = bestCandidate.url;
-			}
-		};
-	})();
 
 	pf.applyBestCandidate = function( candidates, picImg ) {
 		var candidate,
 			length,
 			bestCandidate;
+
+		picImg = picImg.parentNode;
 
 		candidates.sort( pf.ascendingSort );
 
@@ -447,24 +382,23 @@
 
 			bestCandidate.url = pf.makeUrl( bestCandidate.url );
 
-			if ( picImg.src !== bestCandidate.url ) {
+			if ( picImg.style.backgroundImage !== 'url(' + bestCandidate.url + ')' ) {
 				if ( pf.restrictsMixedContent() && bestCandidate.url.substr(0, "http:".length).toLowerCase() === "http:" ) {
 					if ( window.console !== undefined ) {
 						console.warn( "Blocked mixed content image " + bestCandidate.url );
 					}
 				} else {
-					picImg.src = bestCandidate.url;
+					//picImg.src = bestCandidate.url;
 					// currentSrc attribute and property to match
 					// http://picture.responsiveimages.org/#the-img-element
-					if ( !pf.curSrcSupported ) {
-						picImg.currentSrc = picImg.src;
-					}
+					//picImg.currentSrc = picImg.src;
+					picImg.style.backgroundImage = 'url(' + bestCandidate.url + ')';
 
-					pf.backfaceVisibilityFix( picImg );
+					//pf.backfaceVisibilityFix( picImg );
 				}
 			}
 
-			pf.setIntrinsicSize(picImg, bestCandidate);
+			//pf.setIntrinsicSize(picImg, bestCandidate);
 		}
 	};
 
@@ -472,25 +406,6 @@
 		return a.resolution - b.resolution;
 	};
 
-	/**
-	 * In IE9, <source> elements get removed if they aren't children of
-	 * video elements. Thus, we conditionally wrap source elements
-	 * using <!--[if IE 9]><video style="display: none;"><![endif]-->
-	 * and must account for that here by moving those source elements
-	 * back into the picture element.
-	 */
-	pf.removeVideoShim = function( picture ) {
-		var videos = picture.getElementsByTagName( "video" );
-		if ( videos.length ) {
-			var video = videos[ 0 ],
-				vsources = video.getElementsByTagName( "source" );
-			while ( vsources.length ) {
-				picture.insertBefore( vsources[ 0 ], video );
-			}
-			// Remove the video element once we're finished removing its children
-			video.parentNode.removeChild( video );
-		}
-	};
 
 	/**
 	 * Find all `img` elements, and add them to the candidate list if they have
@@ -499,16 +414,17 @@
 	 */
 	pf.getAllElements = function() {
 		var elems = [],
-			imgs = doc.getElementsByTagName( "img" );
+			imgs = doc.getElementsByTagName( "bgdefault" );
 
 		for ( var h = 0, len = imgs.length; h < len; h++ ) {
 			var currImg = imgs[ h ];
 
-			if ( currImg.parentNode.nodeName.toUpperCase() === "PICTURE" ||
+			if ( currImg.parentNode.nodeName.toUpperCase() === "BGPICTURE" ||
 			( currImg.getAttribute( "srcset" ) !== null ) || currImg[ pf.ns ] && currImg[ pf.ns ].srcset !== null ) {
 				elems.push( currImg );
 			}
 		}
+
 		return elems;
 	};
 
@@ -532,13 +448,13 @@
 			}
 
 			// ignore non-`source` nodes
-			if ( source.nodeName.toUpperCase() !== "SOURCE" ) {
+			if ( source.nodeName.toUpperCase() !== "BGSOURCE" ) {
 				continue;
 			}
 			// if it's a source element that has the `src` property set, throw a warning in the console
-			if ( source.getAttribute( "src" ) !== null && typeof console !== undefined ) {
-				console.warn("The `src` attribute is invalid on `picture` `source` element; instead, use `srcset`.");
-			}
+			//if ( source.getAttribute( "src" ) !== null && typeof console !== undefined ) {
+			//	console.warn("The `src` attribute is invalid on `picture` `source` element; instead, use `srcset`.");
+			//}
 
 			var media = source.getAttribute( "media" );
 
@@ -563,7 +479,7 @@
 		return match;
 	};
 
-	function picturefill( opt ) {
+	function bgpicture( opt ) {
 		var elements,
 			element,
 			parent,
@@ -581,7 +497,7 @@
 			candidates = undefined;
 
 			// immediately skip non-`img` nodes
-			if ( element.nodeName.toUpperCase() !== "IMG" ) {
+			if ( element.nodeName.toUpperCase() !== "BGDEFAULT" ) {
 				continue;
 			}
 
@@ -592,16 +508,18 @@
 
 			// if the element has already been evaluated, skip it unless
 			// `options.reevaluate` is set to true ( this, for example,
-			// is set to true when running `picturefill` on `resize` ).
+			// is set to true when running `bgpicture` on `resize` ).
 			if ( !options.reevaluate && element[ pf.ns ].evaluated ) {
 				continue;
 			}
 
+
 			// if `img` is in a `picture` element
-			if ( parent && parent.nodeName.toUpperCase() === "PICTURE" ) {
+			if ( parent && parent.nodeName.toUpperCase() === "BGPICTURE" ) {
+
 
 				// IE9 video workaround
-				pf.removeVideoShim( parent );
+				//pf.removeVideoShim( parent );
 
 				// return the first match which might undefined
 				// returns false if there is a pending source
@@ -610,7 +528,7 @@
 
 				// if any sources are pending in this picture due to async type test(s)
 				// remove the evaluated attr and skip for now ( the pending test will
-				// rerun picturefill on this element when complete)
+				// rerun bgpicture on this element when complete)
 				if ( firstMatch === false ) {
 					continue;
 				}
@@ -618,22 +536,23 @@
 				firstMatch = undefined;
 			}
 
+
 			// Cache and remove `srcset` if present and we’re going to be doing `picture`/`srcset`/`sizes` polyfilling to it.
-			if ( ( parent && parent.nodeName.toUpperCase() === "PICTURE" ) ||
+			if ( ( parent && parent.nodeName.toUpperCase() === "BGPICTURE" ) ||
 			( !pf.sizesSupported && ( element.srcset && regWDesc.test( element.srcset ) ) ) ) {
 				pf.dodgeSrcset( element );
 			}
 
 			if ( firstMatch ) {
 				candidates = pf.processSourceSet( firstMatch );
-				pf.applyBestCandidate( candidates, element );
+				pf.applyBestCandidate( candidates, parent );
 			} else {
 				// No sources matched, so we’re down to processing the inner `img` as a source.
 				candidates = pf.processSourceSet( element );
 
 				if ( element.srcset === undefined || element[ pf.ns ].srcset ) {
 					// Either `srcset` is completely unsupported, or we need to polyfill `sizes` functionality.
-					pf.applyBestCandidate( candidates, element );
+					pf.applyBestCandidate( candidates, parent );
 				} // Else, resolution-only `srcset` is supported natively.
 			}
 
@@ -645,15 +564,15 @@
 	/**
 	 * Sets up picture polyfill by polling the document and running
 	 * the polyfill every 250ms until the document is ready.
-	 * Also attaches picturefill on resize
+	 * Also attaches bgpicture on resize
 	 */
-	function runPicturefill() {
+	function runbgpicture() {
 		pf.initTypeDetects();
-		picturefill();
+		bgpicture();
 		var intervalId = setInterval( function() {
 			// When the document has finished loading, stop checking for new images
 			// https://github.com/ded/domready/blob/master/ready.js#L15
-			picturefill();
+			bgpicture();
 
 			if ( /^loaded|^i|^c/.test( doc.readyState ) ) {
 				clearInterval( intervalId );
@@ -661,13 +580,17 @@
 			}
 		}, 250 );
 
-		var resizeTimer;
-		var handleResize = function() {
-	        picturefill({ reevaluate: true });
-	    };
 		function checkResize() {
-		    clearTimeout(resizeTimer);
-		    resizeTimer = setTimeout( handleResize, 60 );
+			var resizeThrottle;
+
+			if ( !w._bgpictureWorking ) {
+				w._bgpictureWorking = true;
+				w.clearTimeout( resizeThrottle );
+				resizeThrottle = w.setTimeout( function() {
+					bgpicture({ reevaluate: true });
+					w._bgpictureWorking = false;
+				}, 60 );
+			}
 		}
 
 		if ( w.addEventListener ) {
@@ -677,11 +600,11 @@
 		}
 	}
 
-	runPicturefill();
+	runbgpicture();
 
 	/* expose methods for testing */
-	picturefill._ = pf;
+	bgpicture._ = pf;
 
-	expose( picturefill );
+	expose( bgpicture );
 
 } )( window, window.document, new window.Image() );
